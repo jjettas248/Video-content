@@ -30,6 +30,11 @@ export const CAPTIONS: { start: number; end: number; beat: Beat; text: string }[
 /** Shot boundaries (hard cuts), in seconds. */
 export const CUTS = [0, 2.6, 5.6, 8.25, 10, 11.4, 13, 14.65, 16.5, 17.3, 18.1, 20, 21.6, 24, 25.6, 27, 28.45];
 
+/** Punch-in reframes inside shots (eased camera cuts), in seconds. */
+export const PUNCHES = [
+  0.9, 1.7, 3.55, 4.6, 6.6, 7.45, 9.1, 10.7, 12.3, 13.6, 15.35, 18.75, 19.4, 20.9, 22.3, 23.0, 24.8, 26.2, 27.7, 29.2,
+];
+
 /** Captions split into 3-4 word chunks, timed by word position within each line. */
 export const CHUNKS = CAPTIONS.flatMap((c) => {
   const words = c.text.split(" ");

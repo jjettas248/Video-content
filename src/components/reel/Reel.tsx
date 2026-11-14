@@ -4,7 +4,7 @@ import { useRef, type ReactNode } from "react";
 import { Ban, Camera, Eye, Heart, Inbox, Megaphone, Send, ArrowDown, X } from "lucide-react";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { cn } from "@/lib/utils";
-import { CHUNKS, CUTS, REEL_DURATION, REEL_HEIGHT, REEL_WIDTH } from "./script";
+import { CHUNKS, CUTS, PUNCHES, REEL_DURATION, REEL_HEIGHT, REEL_WIDTH } from "./script";
 
 /* ------------------------------------------------------------------ */
 /* Palette: problem = red, solution/gain = green + yellow              */
@@ -117,8 +117,19 @@ export function Reel({ autoplay = true, onReady }: { autoplay?: boolean; onReady
 
       /* ---------- helpers ---------- */
       const scene = (id: string, start: number, end: number) => {
-        tl.set(q(`[data-scene="${id}"]`), { autoAlpha: 1 }, start);
-        tl.set(q(`[data-scene="${id}"]`), { autoAlpha: 0 }, end);
+        // Smooth cut: the outgoing shot pushes past the camera and blurs out while
+        // the incoming one settles in from slightly behind it. The two overlap.
+        const el = q(`[data-scene="${id}"]`);
+        if (start <= 0) tl.set(el, { autoAlpha: 1, scale: 1, filter: "blur(0px)" }, 0);
+        else
+          tl.fromTo(
+            el,
+            { autoAlpha: 0, scale: 0.86, filter: "blur(18px)" },
+            { autoAlpha: 1, scale: 1, filter: "blur(0px)", duration: 0.34, ease: "power3.out", immediateRender: false },
+            start - 0.1,
+          );
+        if (end < REEL_DURATION)
+          tl.to(el, { autoAlpha: 0, scale: 1.16, filter: "blur(18px)", duration: 0.24, ease: "power2.in" }, end - 0.14);
       };
       const sel = (s: string) => q(s);
       // Kinetic slam: word punches in from big + blurred.
@@ -141,8 +152,14 @@ export function Reel({ autoplay = true, onReady }: { autoplay?: boolean; onReady
       const hit = (s: string, t: number, amount = 1.18) =>
         tl.fromTo(sel(s), { scale: amount }, { scale: 1, duration: 0.45, ease: "elastic.out(1.1,0.35)", immediateRender: false }, t);
       const flash = (t: number, color = "#ffffff", strength = 0.9) => {
-        tl.set(sel(".flash"), { backgroundColor: color, autoAlpha: strength }, t);
-        tl.to(sel(".flash"), { autoAlpha: 0, duration: 0.2, ease: "power2.out" }, t + 0.02);
+        // Soft colour bloom instead of a hard strobe.
+        tl.fromTo(
+          sel(".flash"),
+          { backgroundColor: color, autoAlpha: 0 },
+          { autoAlpha: strength * 0.38, duration: 0.08, ease: "power1.out", immediateRender: false },
+          t - 0.06,
+        );
+        tl.to(sel(".flash"), { autoAlpha: 0, duration: 0.36, ease: "power2.out" }, t + 0.03);
       };
       const shake = (t: number, amt = 22) =>
         tl.fromTo(
@@ -151,8 +168,10 @@ export function Reel({ autoplay = true, onReady }: { autoplay?: boolean; onReady
           { x: 0, y: 0, rotation: 0, duration: 0.5, ease: "elastic.out(1.2,0.25)", immediateRender: false },
           t,
         );
-      const bg = (color: string, t: number, duration = 0.01) =>
-        tl.to(sel(".bg"), { backgroundColor: color, duration, ease: "none" }, t);
+      const bg = (color: string, t: number) =>
+        t <= 0
+          ? tl.set(sel(".bg"), { backgroundColor: color }, 0)
+          : tl.to(sel(".bg"), { backgroundColor: color, duration: 0.4, ease: "power1.inOut" }, t - 0.12);
 
       // Money rain: bills fall through the frame between `start` and `end`.
       const bills = sel(".bill");
@@ -213,6 +232,17 @@ export function Reel({ autoplay = true, onReady }: { autoplay?: boolean; onReady
       });
 
       // Camera: constant slow push-in on every shot, so nothing ever sits still.
+      // Punch-ins: extra cuts inside each shot, eased so the reframe glides.
+      const FRAMES = [
+        { scale: 1.1, x: -26, y: 18 },
+        { scale: 1.0, x: 0, y: 0 },
+        { scale: 1.14, x: 24, y: -22 },
+        { scale: 1.04, x: -12, y: -10 },
+      ];
+      PUNCHES.forEach((t, i) => {
+        tl.to(sel(".punch"), { ...FRAMES[i % FRAMES.length], duration: 0.36, ease: "power3.inOut" }, t - 0.12);
+      });
+
       CUTS.forEach((start, i) => {
         const end = CUTS[i + 1] ?? REEL_DURATION;
         tl.fromTo(
@@ -464,6 +494,7 @@ export function Reel({ autoplay = true, onReady }: { autoplay?: boolean; onReady
 
       <div className="sunburst pointer-events-none absolute left-1/2 top-1/2 h-[2600px] w-[2600px] -translate-x-1/2 -translate-y-1/2 bg-[repeating-conic-gradient(rgba(255,255,255,.055)_0_9deg,transparent_9deg_18deg)]" />
       <div className="shaker absolute inset-0">
+       <div className="punch absolute inset-0">
        <div className="cam absolute inset-0">
         {/* ---------------- S1 ---------------- */}
         <Scene id="s1">
@@ -752,6 +783,7 @@ export function Reel({ autoplay = true, onReady }: { autoplay?: boolean; onReady
             <ArrowDown size={140} color={YELLOW} strokeWidth={3} />
           </div>
         </Scene>
+       </div>
        </div>
       </div>
 
